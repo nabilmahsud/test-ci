@@ -1,1 +1,36 @@
+name: Ensure Latest Code Before Push
 
+on:
+  push:
+    branches:
+      - main  # Modify this to your protected branch, e.g., main or master
+
+jobs:
+  check-latest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Fetch all branches
+        run: git fetch --all
+
+      - name: Check if branch is behind remote
+        run: |
+          UPSTREAM=${{ github.event.repository.default_branch }}
+          LOCAL=$(git rev-parse @)
+          REMOTE=$(git rev-parse "origin/${UPSTREAM}")
+          BASE=$(git merge-base @ "origin/${UPSTREAM}")
+
+          if [ "$LOCAL" = "$REMOTE" ]; then
+            echo "Branch is up to date"
+          elif [ "$LOCAL" = "$BASE" ]; then
+            echo "Branch is behind the remote branch. Please pull the latest changes."
+            exit 1
+          elif [ "$REMOTE" = "$BASE" ]; then
+            echo "Branch is ahead of remote."
+          else
+            echo "Branch has diverged. Please pull and resolve conflicts."
+            exit 1
+          fi
