@@ -1,36 +1,40 @@
-name: Ensure Latest Code Before Push
+name: React Vite Build Check
 
 on:
   push:
     branches:
-      - main  # Modify this to your protected branch, e.g., main or master
+      - '**'  # Run on all branches, or specify 'main' or another branch
+  pull_request:
+    branches:
+      - '**'
 
 jobs:
-  check-latest:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Fetch all branches
-        run: git fetch --all
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # Use the appropriate Node.js version
 
-      - name: Check if branch is behind remote
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run the Vite build
+        run: npm run build
+
+      - name: Run the Vite project
+        run: npm run dev -- --port 3000 & # Run Vite on the background
+
+      - name: Check if Vite server is running
         run: |
-          UPSTREAM=${{ github.event.repository.default_branch }}
-          LOCAL=$(git rev-parse @)
-          REMOTE=$(git rev-parse "origin/${UPSTREAM}")
-          BASE=$(git merge-base @ "origin/${UPSTREAM}")
+          sleep 10  # Give Vite some time to start
+          curl --fail http://localhost:3000 || exit 1
+        timeout-minutes: 2  # Set a timeout in case it hangs
 
-          if [ "$LOCAL" = "$REMOTE" ]; then
-            echo "Branch is up to date"
-          elif [ "$LOCAL" = "$BASE" ]; then
-            echo "Branch is behind the remote branch. Please pull the latest changes."
-            exit 1
-          elif [ "$REMOTE" = "$BASE" ]; then
-            echo "Branch is ahead of remote."
-          else
-            echo "Branch has diverged. Please pull and resolve conflicts."
-            exit 1
-          fi
+      - name: Kill Vite server
+        run: kill $(jobs -p) || true  # Cleanup the background process
