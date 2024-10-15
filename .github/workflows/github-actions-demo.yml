@@ -1,0 +1,40 @@
+name: React Vite Build Check
+
+on:
+  push:
+    branches:
+      - '**'  # Run on all branches, or specify 'main' or another branch
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # Use the appropriate Node.js version
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run the Vite build
+        run: npm run build
+
+      - name: Run the Vite project
+        run: npm run dev -- --port 3000 & # Run Vite on the background
+
+      - name: Check if Vite server is running
+        run: |
+          sleep 10  # Give Vite some time to start
+          curl --fail http://localhost:3000 || exit 1
+        timeout-minutes: 2  # Set a timeout in case it hangs
+
+      - name: Kill Vite server
+        run: kill $(jobs -p) || true  # Cleanup the background process
